@@ -10,6 +10,7 @@ import nfqueue
 from dpkt import ip, tcp
 from socket import AF_INET, AF_INET6, inet_ntoa
 import sys
+import optparse
 
 IDX_IDX = 0
 IDX_FORBIDDEN = 1
@@ -75,7 +76,7 @@ def update_stats_for_word(word):
     oo_instance.setCell(session, book, sheet + 1, oo_index, idx, cell_value)
 
 def cb(i,payload):
-        global pkt_counter, oo_tcp_ports, oo_words
+        global pkt_counter, oo_tcp_ports, oo_words, options
         # every n packets, re-read list of ports
         if pkt_counter % 50 == 0:
             print "re-reading list of TCP ports"
@@ -119,30 +120,40 @@ def cb(i,payload):
                         payload.set_verdict(nfqueue.NF_DROP)
                         sys.stdout.flush()
                         return 1
-                # accepted data packet need to be modified
-                if pkt.tcp.flags & tcp.TH_PUSH:
-                    pkt2 = pkt
-                    for word in oo_words.keys():
-                        if str(pkt.tcp.data).find(word) != -1:
-                            # Do substitution
-                            print "Found %s word" % word
-                            print pkt2.tcp.data
-                            old_len = len(pkt2.tcp.data)
-                            pkt2.tcp.data = str(pkt2.tcp.data).replace(word,oo_words[word][1])
-                            pkt2.len = pkt2.len - old_len + len(pkt2.tcp.data)
-                            pkt2.tcp.sum = 0
-                            pkt2.sum = 0
-                            update_stats_for_word(word)
-
-                    payload.set_verdict_modified(nfqueue.NF_ACCEPT,str(pkt2),len(pkt2))
-                elif decision == nfqueue.NF_DROP:
-                    payload.set_verdict(nfqueue.NF_DROP)
+                if options.do_substitution:
+                    # accepted data packet need to be modified
+                    if pkt.tcp.flags & tcp.TH_PUSH:
+                        pkt2 = pkt
+                        for word in oo_words.keys():
+                            if str(pkt.tcp.data).find(word) != -1:
+                                # Do substitution
+                                print "Found %s word" % word
+                                print pkt2.tcp.data
+                                old_len = len(pkt2.tcp.data)
+                                pkt2.tcp.data = str(pkt2.tcp.data).replace(word,oo_words[word][1])
+                                pkt2.len = pkt2.len - old_len + len(pkt2.tcp.data)
+                                pkt2.tcp.sum = 0
+                                pkt2.sum = 0
+                                update_stats_for_word(word)
+                        payload.set_verdict_modified(nfqueue.NF_ACCEPT,str(pkt2),len(pkt2))
+                    elif decision == nfqueue.NF_DROP:
+                        payload.set_verdict(nfqueue.NF_DROP)
         payload.set_verdict(nfqueue.NF_ACCEPT)
 
         sys.stdout.flush()
         return 1
 
 
+parser = optparse.OptionParser(usage='oowall.py [-s] ')
+parser.add_option("-s", "--with-substitution", dest="do_substitution",
+             action="store_true", default=False,
+             help="do on-the-fly substitution using second tab of spreadsheet")
+
+try:
+    options, args = parser.parse_args()
+except IndexError:
+    parser.print_help()
+    sys.exit(2)
 
 q = nfqueue.queue()
 q.set_callback(cb)
