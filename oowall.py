@@ -11,6 +11,7 @@ from dpkt import ip, tcp
 from socket import AF_INET, AF_INET6, inet_ntoa
 import sys
 import optparse
+import os
 
 IDX_IDX = 0
 IDX_FORBIDDEN = 1
@@ -145,9 +146,14 @@ def cb(i,payload):
 
 
 parser = optparse.OptionParser(usage='oowall.py [-s] ')
+parser.add_option("-c", "--config-file", dest="oofile", default=os.environ.get('PWD') + '/oowall.ods',
+             help="location of the oocalc file")
+parser.add_option("-u", "--uri", dest="uri", default='http://localhost:8000',
+             help="URI of the pyuno server")
 parser.add_option("-s", "--with-substitution", dest="do_substitution",
              action="store_true", default=False,
-             help="do on-the-fly substitution using second tab of spreadsheet")
+             help="activate on-the-fly substitution")
+
 
 try:
     options, args = parser.parse_args()
@@ -159,10 +165,11 @@ q = nfqueue.queue()
 q.set_callback(cb)
 q.fast_open(0, AF_INET)
 
-oo_instance = ServerProxy('http://localhost:8000')
+print "Using %s calc file and connecting to %s" % (options.oofile, options.uri)
 
+oo_instance = ServerProxy(options.uri)
 session = oo_instance.openSession('string')
-book = oo_instance.openBook(session, '/home/eric/git/oowall/oowall.ods')
+book = oo_instance.openBook(session, options.oofile)
 
 sheet_list = oo_instance.getBookSheets(session, book)
 print sheet_list
