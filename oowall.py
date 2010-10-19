@@ -29,6 +29,7 @@ def get_list_of_tcp_ports():
         cell_allowed = oo_instance.getCell(session, book, sheet, 2, y)
         cell_verdict = oo_instance.getCell(session, book, sheet, 3, y)
         ret[int(cell_port)] = (y, cell_forbidden, cell_allowed, cell_verdict)
+        print "Adding port %d" % cell_port
         y += 1
     return ret
 
@@ -102,6 +103,14 @@ def cb(i,payload):
                         print "Port %d allowed" % dport
                         update_stats_for_port(dport, pkt, 1)
                         decision = nfqueue.NF_ACCEPT
+		    else:
+                        if t[IDX_VERDICT] == 0:
+                            print "Port %d dropped" % dport
+                            update_stats_for_port(dport, pkt, 0)
+                            decision = nfqueue.NF_DROP
+                            payload.set_verdict(decision)
+                            sys.stdout.flush()
+                            return 1
                 # don't check for packet return on SYN
                 if pkt.tcp.flags & tcp.TH_SYN and not pkt.tcp.flags & tcp.TH_ACK:
                     payload.set_verdict(decision)
