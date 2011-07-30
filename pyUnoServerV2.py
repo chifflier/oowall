@@ -50,7 +50,8 @@ class PyUNOServer(SimpleXMLRPCServer):
 		self.sessionSerial = 0
  
 		# Start Calc and grep the PID
-		self.PID = os.spawnlp(os.P_NOWAIT,"/usr/bin/oocalc","","-accept=socket,host=localhost,port=2002;urp;")
+		#self.PID = os.spawnlp(os.P_NOWAIT,"/usr/bin/oocalc","","-accept=socket,host=localhost,port=2002;urp;")
+		self.PID = os.spawnlp(os.P_NOWAIT,"/usr/bin/libreoffice","","-accept=socket,host=localhost,port=2002;urp;")
  
 		self.logger.info("OOCalc Iniciado con el PID %d" % self.PID)
  
